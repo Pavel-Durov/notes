@@ -1,0 +1,77 @@
+#!/bin/sh
+# notes: fzf-based local notes/snippets browser.
+# Env: NOTES_DIR (default ~/notes), EDITOR (default nvim).
+
+set -eu
+
+NOTES_DIR="${NOTES_DIR:-$HOME/.notes}"
+EDITOR_CMD="${EDITOR:-nvim}"
+
+usage() {
+    cat >&2 <<EOF
+Usage:
+  notes                fuzzy-search filenames, preview content, enter to edit
+  notes -c [query]     content search (grep) with live-reload fzf
+  notes new <name>     create/open a note
+  notes --zsh          print zsh shell integration (source <(notes --zsh))
+  notes -h             show this help
+
+Env: NOTES_DIR (default: ~/.notes), EDITOR (default: nvim)
+EOF
+    exit "${1:-1}"
+}
+
+mkdir -p "$NOTES_DIR"
+
+case "${1:-}" in
+    -h|--help)
+        usage 0
+        ;;
+    --zsh)
+        cat <<'ZSH_EOF'
+# notes shell integration — Ctrl-W launches the picker.
+# ponytail: overrides zsh's default backward-kill-word on ^W.
+_notes_widget() { zle -I; notes; zle reset-prompt }
+zle -N _notes_widget
+bindkey '^W' _notes_widget
+ZSH_EOF
+        ;;
+    new)
+        [ $# -ge 2 ] || usage
+        shift
+        "$EDITOR_CMD" "$NOTES_DIR/$1"
+        ;;
+    -c)
+        shift
+        q="${1:-}"
+        # grep on every keystroke; swap to rg if it feels slow.
+        sel=$(cd "$NOTES_DIR" && \
+            FZF_DEFAULT_COMMAND="grep -rIln --exclude-dir=.git -- '' . 2>/dev/null" \
+            fzf --disabled --query "$q" --ansi \
+                --prompt='content> ' \
+                --bind "change:reload:grep -rIln --exclude-dir=.git -- {q} . 2>/dev/null || true" \
+                --preview 'grep -n --color=always -- "$(printf %s {q})" {} 2>/dev/null | head -200; echo; echo ----; cat {}' \
+                --preview-window=right:60%)
+        [ -n "$sel" ] && "$EDITOR_CMD" "$NOTES_DIR/$sel"
+        ;;
+    "")
+        # ponytail: grep feeds every line as path:lineno:text; fzf fuzzies
+        # over path + content. Loads whole tree upfront — swap to `-c` for
+        # live-grep on huge notes dirs.
+        sel=$(cd "$NOTES_DIR" && \
+            grep -rIn --exclude-dir=.git -e '' . 2>/dev/null \
+            | sed 's|^\./||' \
+            | fzf --prompt='notes> ' \
+                  --delimiter=: --nth=1,3.. \
+                  --preview 'f=$(printf %s {} | cut -d: -f1); cat "'"$NOTES_DIR"'/$f"' \
+                  --preview-window=right:60%)
+        if [ -n "$sel" ]; then
+            file=$(printf '%s' "$sel" | cut -d: -f1)
+            line=$(printf '%s' "$sel" | cut -d: -f2)
+            "$EDITOR_CMD" "+$line" "$NOTES_DIR/$file"
+        fi
+        ;;
+    *)
+        usage
+        ;;
+esac
