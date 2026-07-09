@@ -10,11 +10,10 @@ Fzf-based browser for a local notes directory.
 ## Install
 
 ```sh
-git clone <repo-url> ~/src/notes
-sh ~/src/notes/install.sh
+curl -fsSL https://raw.githubusercontent.com/Pavel-Durov/notes/main/install.sh | sh
 ```
 
-The installer symlinks `notes` into `~/.local/bin` and appends a guarded
+The installer downloads `notes` into `~/.local/bin` and appends a guarded
 block to `~/.zshrc` that sources the shell integration.
 
 Open a new shell (or `source ~/.zshrc`). **Ctrl-W** launches the picker.

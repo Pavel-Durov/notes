@@ -1,17 +1,15 @@
 #!/bin/sh
-# Install: fetch `notes` onto PATH and wire the zsh hook into ~/.zshrc.
 set -eu
 
+DIR=$(cd "$(dirname "$0")" && pwd)
 BIN="${HOME}/.local/bin"
 ZSHRC="${HOME}/.zshrc"
 MARK="# >>> notes shell integration >>>"
-RAW="https://raw.githubusercontent.com/Pavel-Durov/notes/main/bin/notes"
 
 command -v fzf >/dev/null || { echo "notes needs fzf on PATH." >&2; exit 1; }
 
 mkdir -p "$BIN"
-curl -fsSL "$RAW" -o "$BIN/notes"
-chmod +x "$BIN/notes"
+ln -sf "$DIR/notes" "$BIN/notes"
 
 touch "$ZSHRC"
 if ! grep -qF "$MARK" "$ZSHRC"; then

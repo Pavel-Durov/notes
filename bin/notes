@@ -21,6 +21,8 @@ EOF
     exit "${1:-1}"
 }
 
+command -v fzf >/dev/null || { echo "notes: fzf not found on PATH." >&2; exit 1; }
+
 mkdir -p "$NOTES_DIR"
 
 case "${1:-}" in
